@@ -1,5 +1,7 @@
 package com.staf621.ki4a;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -8,6 +10,7 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.IBinder;
@@ -106,7 +109,7 @@ public class ki4aService extends Service {
             MyLog.d(Util.TAG,"Starting new wait4connection");
             int i;
 
-            if(!preferences.getBoolean("iptables_switch",false)) {
+            if(preferences.getBoolean("route_switch",false)) {
                 for (i = 0; i < 20; i++) {
                     if (vpn_ready) break;
                     if (Thread.currentThread().isInterrupted()) return;
@@ -199,6 +202,7 @@ public class ki4aService extends Service {
                 boolean compress = preferences.getBoolean("compress_switch", false);
                 boolean proxy = preferences.getBoolean("proxy_switch", false);
                 boolean iptables_switch = preferences.getBoolean("iptables_switch", false);
+                boolean route_switch = preferences.getBoolean("route_switch", false);
                 boolean dns_switch = preferences.getBoolean("dns_switch",true);
                 String dns_server = preferences.getString("dns_server", GOOGLE_DNS);
                 String forward_string = ForwardList.getForwardString(myContext);
@@ -228,7 +232,7 @@ public class ki4aService extends Service {
                 }
 
                 // If we are on VPN mode, we need to start it also
-                if (!preferences.getBoolean("iptables_switch", false)) {
+                if (route_switch) {
                     Util.startKi4aVPN(myContext, getPackageName());
                     vpn_ready = false;
                 }
@@ -247,9 +251,9 @@ public class ki4aService extends Service {
                                     + " -NT -g -D " + Util.localSocksPort + (dns_switch?" -L 127.0.0.1:8163:"+dns_server+":53":"")
                                     + forward_string
                                     + (key_switch ? " -i \"" + BASE + "/id_rsa\"" : "")
-                                    + (compress ? " -C" : "")
+                                    + (compress ? " -C" : "")//+" -v "
                                     + " -o \"ProxyCommand " + BASE + BASE_BIN + "/korkscrew"
-                                    + (iptables_switch ? "" : " --ancillaryfile " + BASE + "/sshfd_file")
+                                    + (route_switch ? " --ancillaryfile " + BASE + "/sshfd_file":"")
                                     + (proxy ? " --proxyhost " + proxy_host
                                     + " --proxyport " + proxy_port + " --desthost %h --destport %p"
                                     + " --headerfile " + BASE + "/header_file" + "\""
@@ -346,7 +350,14 @@ public class ki4aService extends Service {
         PendingIntent pIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
 
         notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        notification = new NotificationCompat.Builder(this)
+        String channelId="my_service";
+        String channelName="My Background Service";
+        NotificationChannel chan =new NotificationChannel(channelId,channelName, NotificationManager.IMPORTANCE_NONE);
+        chan.setLightColor( Color.BLUE);
+        chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+
+        notificationManager.createNotificationChannel(chan);
+        notification = new NotificationCompat.Builder(this,channelId)
                 .setContentTitle("Ki4a")
                 .setContentText("Init!")
                 .setSmallIcon(R.drawable.notification_icon)
@@ -491,6 +502,7 @@ public class ki4aService extends Service {
     protected void stop_ki4aredirect()
     {
         boolean iptables_switch = preferences.getBoolean("iptables_switch", false);
+        boolean route_switch = preferences.getBoolean("route_switch", false);
         current_status = Util.STATUS_DISCONNECT; //Disconnect
         notifyStatusChange(myContext);
         showAToast(getString(R.string.text_status_disconnected), true);
@@ -517,7 +529,7 @@ public class ki4aService extends Service {
                     BASE + BASE_BIN + "/iptables -t nat -F POSTROUTING;" +
                     BASE + BASE_BIN + "/iptables -t nat -F PREROUTING", true);
         }
-        else {
+        else if(route_switch){
             Util.stopKi4aVPN(this, getPackageName());
         }
 

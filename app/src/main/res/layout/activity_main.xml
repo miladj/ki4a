@@ -34,17 +34,6 @@
         android:textColor="#000000"
         android:background="@color/colorTransparent"/>
 
-    <com.adclient.android.sdk.view.AdClientView
-        android:id="@+id/adClientView"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        app:adPlacementKey="ab24f1132fc990381b3c55c485bef7fd"
-        app:refreshInterval="30"
-        app:adType="BANNER_320X50"
-        app:textAlign="center"
-        app:viewBackground="#80000000"
-        app:adServerUrl ="http://appservestar.com/"
-        android:layout_centerHorizontal="true"
-        android:layout_alignParentBottom="true"/>
+
 
 </RelativeLayout>
